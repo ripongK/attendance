@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ผู้ดูแลระบบลงเวลา</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F2F5F3; --card: #FFFFFF; --ink: #1C2B26; --muted: #5D6F68; --line: #D5DED9;
+    --in: #0F6B4F; --in-soft: #DCEFE6; --out: #2F3E8F; --out-soft: #E1E5F6;
+    --warn: #8A4B00; --warn-soft: #FBEBD3; --danger: #B42318; --danger-soft: #FDE4E1;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'IBM Plex Sans Thai', system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+         background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.55;
+         padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+
+  header.app { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+               max-width: 1100px; margin: 0 auto; padding: 18px 16px 8px; }
+  header.app h1 { font-size: 22px; font-weight: 700; }
+  header.app .who { color: var(--muted); font-size: 14px; }
+
+  nav.tabs { position: sticky; top: 0; z-index: 20; background: var(--paper); border-bottom: 1px solid var(--line); }
+  nav.tabs .inner { max-width: 1100px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; overflow-x: auto; }
+  nav.tabs button { background: none; border: 0; font: inherit; font-weight: 600; color: var(--muted);
+                    padding: 12px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+  nav.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--in); }
+  .count { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 99px; background: var(--warn-soft);
+           color: var(--warn); font-size: 12px; margin-left: 4px; text-align: center; }
+
+  h2 { font-size: 18px; font-weight: 600; margin: 24px 0 10px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+
+  /* ภาพรวม */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--line);
+           border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+  .stat { background: var(--card); padding: 14px 16px; }
+  .stat .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat .v small { font-size: 16px; color: var(--muted); font-weight: 500; }
+  .stat .l { color: var(--muted); font-size: 14px; }
+  .people { columns: 3 240px; column-gap: 24px; }
+  .people li { break-inside: avoid; padding: 4px 0; list-style: none; border-bottom: 1px dashed var(--line); }
+
+  /* ตัวกรอง */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0 12px; }
+  .toolbar input[type=search] { flex: 1 1 220px; }
+  input[type=search], input[type=text], input[type=tel], select {
+    font: inherit; font-size: 15px; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+  }
+  label.check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  label.check input { width: 18px; height: 18px; accent-color: var(--in); }
+
+  /* ตาราง */
+  .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; font-weight: 600; color: var(--muted); background: #F7F9F8; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sub { font-size: 13px; color: var(--muted); }
+  .empty { padding: 32px; text-align: center; color: var(--muted); }
+
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .p-in { background: var(--in-soft); color: var(--in); }
+  .p-out { background: var(--out-soft); color: var(--out); }
+  .p-warn { background: var(--warn-soft); color: var(--warn); }
+  .p-off { background: #ECEFEE; color: var(--muted); }
+
+  .btn { font: inherit; font-weight: 600; font-size: 14px; border-radius: 10px; padding: 8px 14px; cursor: pointer;
+         border: 1.5px solid var(--ink); background: var(--ink); color: #fff; white-space: nowrap; }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  a { color: var(--in); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #7FB8A4; outline-offset: 2px; }
+
+  /* หน้าต่างซ้อน */
+  .modal { position: fixed; inset: 0; background: rgba(28,43,38,.5); display: flex; align-items: center; justify-content: center; z-index: 90; padding: 16px; }
+  .dialog { background: var(--paper); border-radius: 16px; padding: 20px; width: 100%; max-width: 460px; max-height: 90vh; overflow: auto; }
+  .dialog h3 { font-size: 18px; margin-bottom: 12px; }
+  .dialog .row { margin-bottom: 12px; }
+  .dialog .row label { display: block; font-weight: 500; margin-bottom: 4px; }
+  .dialog .row input { width: 100%; }
+  .dialog .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dialog .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .err { background: var(--danger-soft); color: var(--danger); padding: 12px 14px; border-radius: 10px; }
+
+  .busy { position: fixed; inset: 0; background: rgba(242,245,243,.85); display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 12px; z-index: 100; font-weight: 500; }
+  .spinner { width: 38px; height: 38px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--in); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+  .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+           background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 110; max-width: 92vw; }
+  .uid { width: 100%; font-family: inherit; font-size: 14px; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<header class="app" id="app-head" hidden>
+  <h1>ระบบลงเวลา: ผู้ดูแล</h1>
+  <div class="who" id="who"></div>
+</header>
+
+<nav class="tabs" id="tabs" hidden>
+  <div class="inner" role="tablist">
+    <button role="tab" data-tab="overview" aria-selected="true">ภาพรวมวันนี้</button>
+    <button role="tab" data-tab="attendance" aria-selected="false">ประวัติลงเวลา</button>
+    <button role="tab" data-tab="employees" aria-selected="false">พนักงาน</button>
+    <button role="tab" data-tab="stores" aria-selected="false">ร้านค้า<span class="count" id="pending-count" hidden></span></button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="v-error" hidden style="margin-top:32px">
+    <h2>เปิดหน้าผู้ดูแลไม่สำเร็จ</h2>
+    <div class="err" id="error-msg"></div>
+    <div id="uid-box" hidden style="margin-top:16px" class="card">
+      <div>รหัส LINE ของคุณ (ส่งให้ผู้ดูแลระบบใส่ในชีต Admins คอลัมน์ line_uid)</div>
+      <input class="uid" id="uid-text" type="text" readonly>
+      <button class="btn" id="btn-copy">คัดลอกรหัส</button>
+    </div>
+    <p style="margin-top:16px"><button class="btn ghost" onclick="location.reload()">ลองใหม่อีกครั้ง</button></p>
+  </section>
+
+  <!-- ภาพรวม -->
+  <section id="v-overview" hidden>
+    <div class="stats" id="stats"></div>
+    <h2>ยังไม่ลงเวลาวันนี้ <span class="muted" id="nc-count"></span></h2>
+    <div class="card"><ul class="people" id="not-checked"></ul></div>
+    <h2>ยังไม่ลงทะเบียน LINE <span class="muted" id="nr-count"></span></h2>
+    <div class="card"><ul class="people" id="not-registered"></ul></div>
+  </section>
+
+  <!-- ประวัติการลงเวลา -->
+  <section id="v-attendance" hidden>
+    <div class="toolbar">
+      <select id="att-days" aria-label="ช่วงเวลา">
+        <option value="1">วันนี้</option>
+        <option value="7" selected>7 วันล่าสุด</option>
+        <option value="31">31 วันล่าสุด</option>
+      </select>
+      <label class="check"><input type="checkbox" id="att-flagged"> เฉพาะรายการที่ควรตรวจสอบ</label>
+      <input type="search" id="att-q" placeholder="ค้นหารหัส ชื่อพนักงาน หรือสถานที่">
+      <button class="btn ghost" id="att-reload">โหลดใหม่</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>วันเวลา</th><th>พนักงาน</th><th>ประเภท</th><th>สถานที่</th><th>ตรวจสอบ</th><th>หลักฐาน</th></tr></thead>
+      <tbody id="att-body"></tbody>
+    </table></div>
+    <p class="sub" style="margin-top:8px">แสดงสูงสุด 500 รายการล่าสุด ข้อมูลทั้งหมดดูได้ในชีต Attendance</p>
+  </section>
+
+  <!-- พนักงาน -->
+  <section id="v-employees" hidden>
+    <div class="toolbar">
+      <input type="search" id="emp-q" placeholder="ค้นหารหัส ชื่อ ภาค หรือชื่อ LINE">
+      <select id="emp-filter" aria-label="กรองพนักงาน">
+        <option value="all">ทั้งหมด</option>
+        <option value="registered">ลงทะเบียนแล้ว</option>
+        <option value="unregistered">ยังไม่ลงทะเบียน</option>
+        <option value="inactive">ถูกระงับ</option>
+      </select>
+      <button class="btn ghost" id="emp-reload">โหลดใหม่</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ภาค</th><th>LINE</th><th>วันนี้</th><th>สถานะ</th><th></th></tr></thead>
+      <tbody id="emp-body"></tbody>
+    </table></div>
+  </section>
+
+  <!-- ร้านค้า -->
+  <section id="v-stores" hidden>
+    <div class="toolbar">
+      <select id="st-filter" aria-label="กรองร้านค้า">
+        <option value="pending">รอยืนยัน</option>
+        <option value="all">ทั้งหมด</option>
+      </select>
+      <input type="search" id="st-q" placeholder="ค้นหาชื่อร้าน ตำบล อำเภอ จังหวัด หรือเบอร์โทร">
+      <button class="btn ghost" id="st-reload">โหลดใหม่</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ร้านค้า</th><th>ที่อยู่</th><th>โทร</th><th>เพิ่มโดย</th><th>เข้าเยี่ยม</th><th></th></tr></thead>
+      <tbody id="st-body"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<!-- ยืนยันการทำรายการ -->
+<div class="modal" id="confirm" hidden>
+  <div class="dialog">
+    <h3 id="confirm-title">ยืนยัน</h3>
+    <p id="confirm-msg"></p>
+    <div class="foot">
+      <button class="btn ghost" id="confirm-no">ยกเลิก</button>
+      <button class="btn" id="confirm-yes">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- แก้ไขร้านค้า -->
+<div class="modal" id="store-edit" hidden>
+  <div class="dialog">
+    <h3>แก้ไขข้อมูลร้านค้า</h3>
+    <div class="row"><label for="e-name">ชื่อร้าน</label><input type="text" id="e-name"></div>
+    <div class="row"><label for="e-phone">เบอร์โทร</label><input type="tel" id="e-phone"></div>
+    <div class="grid2">
+      <div class="row"><label for="e-sub">ตำบล</label><input type="text" id="e-sub"></div>
+      <div class="row"><label for="e-dist">อำเภอ</label><input type="text" id="e-dist"></div>
+      <div class="row"><label for="e-prov">จังหวัด</label><input type="text" id="e-prov"></div>
+      <div class="row"><label for="e-zip">รหัสไปรษณีย์</label><input type="text" id="e-zip" inputmode="numeric" maxlength="5"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="e-verified"> ยืนยันว่าเป็นร้านค้าจริง</label>
+    <div class="foot">
+      <button class="btn ghost" id="e-cancel">ยกเลิก</button>
+      <button class="btn" id="e-save">บันทึกการแก้ไข</button>
+    </div>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden><div class="spinner"></div><div id="busy-text"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+/* =========================================================
+ * ตั้งค่า: แก้ 2 บรรทัดนี้ก่อนอัปโหลด
+ * ========================================================= */
+const CONFIG = {
+  LIFF_ID: '2011895450-z2wzll0X',            // LIFF ตัวที่ 2 (endpoint ลงท้าย admin.html)
+  API_URL: 'https://script.google.com/macros/s/AKfycbz7NnN5iOSvr9d3bGMjS4vvmzrWwR9KkIEf_ZlW_0_jJcGP4TFNvoCJtGqa48Zts-nb5A/exec'      // URL เดียวกับใน index.html
+};
+
+const A = { idToken: null, admin: null, employees: null, stores: null, attendance: null, editing: null };
+const TYPE_LABEL = { IN: 'เข้างาน', OUT: 'ออกงาน' };
+const FLAG_TH = { FAR: 'ห่างจากร้านเกินรัศมี', LOW_ACCURACY: 'GPS ไม่แม่นยำ', NO_STORE: 'ไม่ได้ระบุร้าน' };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const mapLink = (lat, lng) => `https://www.google.com/maps?q=${lat},${lng}`;
+const fmtDist = m => m === '' || m == null ? '' : (m >= 1000 ? (m / 1000).toFixed(1) + ' กม.' : m + ' ม.');
+const canWrite = () => A.admin && A.admin.role !== 'viewer';
+
+function busy(text) { if (text) { $('#busy-text').textContent = text; $('#busy').hidden = false; } else $('#busy').hidden = true; }
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3500); }
+
+function askConfirm(title, msg, yesLabel, danger) {
+  return new Promise(resolve => {
+    $('#confirm-title').textContent = title;
+    $('#confirm-msg').textContent = msg;
+    const yes = $('#confirm-yes');
+    yes.textContent = yesLabel || 'ยืนยัน';
+    yes.className = danger ? 'btn danger' : 'btn';
+    $('#confirm').hidden = false;
+    const done = v => { $('#confirm').hidden = true; yes.onclick = null; $('#confirm-no').onclick = null; resolve(v); };
+    yes.onclick = () => done(true);
+    $('#confirm-no').onclick = () => done(false);
+  });
+}
+
+async function api(action, data) {
+  let res;
+  try {
+    res = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, idToken: A.idToken, data: data || {} }) });
+  } catch (e) { throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'); }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ ตรวจสอบ API_URL และการ Deploy'); }
+  if (!json.ok) throw Object.assign(new Error(json.message), { code: json.code, extra: json.extra });
+  return json.data;
+}
+
+function showError(e) {
+  $('#error-msg').textContent = e.message;
+  if (e.code === 'NOT_ADMIN' && e.extra && e.extra.uid) {
+    $('#uid-text').value = e.extra.uid;
+    $('#uid-box').hidden = false;
+  }
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'v-error');
+}
+
+/* ========================= เริ่มต้น ========================= */
+async function main() {
+  if (CONFIG.LIFF_ID.includes('ใส่') || CONFIG.API_URL.includes('ใส่')) {
+    showError(new Error('ยังไม่ได้ตั้งค่า LIFF_ID หรือ API_URL ในไฟล์ admin.html')); return;
+  }
+  busy('กำลังเชื่อมต่อ LINE');
+  try {
+    await liff.init({ liffId: CONFIG.LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    A.idToken = liff.getIDToken();
+    busy('กำลังโหลดข้อมูล');
+    const r = await api('adminInit');
+    A.admin = r.admin;
+    $('#who').textContent = `${r.admin.name}  ${r.admin.role === 'viewer' ? '(ดูอย่างเดียว)' : '(ผู้ดูแล)'}`;
+    $('#app-head').hidden = false;
+    $('#tabs').hidden = false;
+    renderOverview(r);
+    switchTab('overview');
+  } catch (e) {
+    showError(e);
+  } finally {
+    busy();
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'v-' + name);
+  if (name === 'employees' && !A.employees) loadEmployees();
+  if (name === 'stores' && !A.stores) loadStores();
+  if (name === 'attendance' && !A.attendance) loadAttendance();
+}
+
+/* ========================= ภาพรวม ========================= */
+function renderOverview(r) {
+  const s = r.stats;
+  const stat = (v, l) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  $('#stats').innerHTML =
+    stat(`${s.checkedToday}<small> / ${s.registered}</small>`, 'คนที่ลงเวลาแล้ววันนี้') +
+    stat(s.checkinsToday, 'จำนวนครั้งที่ลงเวลาวันนี้') +
+    stat(s.flaggedToday, 'รายการที่ควรตรวจสอบวันนี้') +
+    stat(`${s.registered}<small> / ${s.active}</small>`, 'ลงทะเบียน LINE แล้ว') +
+    stat(`${s.pendingStores}<small> / ${s.totalStores}</small>`, 'ร้านค้ารอยืนยัน');
+  const pc = $('#pending-count');
+  pc.textContent = s.pendingStores; pc.hidden = !s.pendingStores;
+
+  const li = e => `<li>${esc(e.empId)} ${esc(e.fullName)} <span class="sub">${esc(e.region)}</span></li>`;
+  $('#nc-count').textContent = `(${r.notCheckedToday.length} คน)`;
+  $('#not-checked').innerHTML = r.notCheckedToday.length ? r.notCheckedToday.map(li).join('') : '<li class="muted">ทุกคนที่ลงทะเบียนแล้วลงเวลาครบ</li>';
+  $('#nr-count').textContent = `(${r.notRegistered.length} คน)`;
+  $('#not-registered').innerHTML = r.notRegistered.length ? r.notRegistered.map(li).join('') : '<li class="muted">ลงทะเบียนครบทุกคน</li>';
+}
+
+/* ========================= ประวัติการลงเวลา ========================= */
+async function loadAttendance() {
+  busy('กำลังโหลดประวัติ');
+  try {
+    A.attendance = await api('adminAttendance', { days: Number($('#att-days').value), onlyFlagged: $('#att-flagged').checked });
+    renderAttendance();
+  } catch (e) { toast(e.message); } finally { busy(); }
+}
+
+function renderAttendance() {
+  const q = $('#att-q').value.trim().toLowerCase();
+  const rows = (A.attendance || []).filter(r => !q || `${r.empId} ${r.fullName} ${r.placeName}`.toLowerCase().includes(q));
+  $('#att-body').innerHTML = rows.length ? rows.map(r => {
+    const flags = r.flag === 'OK' ? '<span class="sub">ปกติ</span>'
+      : r.flag.split(',').map(f => `<span class="pill p-warn">${esc(FLAG_TH[f] || f)}</span>`).join(' ');
+    return `<tr>
+      <td class="num">${esc(r.date)}<div class="sub">วัน${esc(r.dayTh)} ${esc(r.time)} น.</div></td>
+      <td>${esc(r.fullName)}<div class="sub">${esc(r.empId)}</div></td>
+      <td><span class="pill ${r.checkType === 'IN' ? 'p-in' : 'p-out'}">${TYPE_LABEL[r.checkType] || esc(r.checkType)}</span></td>
+      <td>${esc(r.placeName)}<div class="sub">${r.locationType === 'NEW_STORE' ? 'ร้านใหม่ ' : ''}${fmtDist(r.distance)}${r.note ? ' หมายเหตุ: ' + esc(r.note) : ''}</div></td>
+      <td>${flags}<div class="sub">GPS ±${r.accuracy} ม.</div></td>
+      <td class="actions"><a href="${esc(r.photoUrl)}" target="_blank" rel="noopener">รูป</a> <a href="${mapLink(r.lat, r.lng)}" target="_blank" rel="noopener">แผนที่</a></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" class="empty">ไม่มีรายการในช่วงเวลานี้</td></tr>';
+}
+
+/* ========================= พนักงาน ========================= */
+async function loadEmployees() {
+  busy('กำลังโหลดรายชื่อพนักงาน');
+  try { A.employees = await api('adminEmployees'); renderEmployees(); }
+  catch (e) { toast(e.message); } finally { busy(); }
+}
+
+function renderEmployees() {
+  const q = $('#emp-q').value.trim().toLowerCase();
+  const f = $('#emp-filter').value;
+  const rows = (A.employees || []).filter(e =>
+    (!q || `${e.empId} ${e.fullName} ${e.region} ${e.lineName}`.toLowerCase().includes(q)) &&
+    (f === 'all' || (f === 'registered' && e.registered) || (f === 'unregistered' && !e.registered) || (f === 'inactive' && e.status !== 'active')));
+  $('#emp-body').innerHTML = rows.length ? rows.map(e => `<tr>
+      <td class="num">${esc(e.empId)}</td>
+      <td>${esc(e.fullName)}<div class="sub">${esc(e.position)}</div></td>
+      <td>${esc(e.region)}</td>
+      <td>${e.registered ? esc(e.lineName) + `<div class="sub">ลงทะเบียน ${esc(e.registeredAt)}</div>` : '<span class="pill p-off">ยังไม่ลงทะเบียน</span>'}</td>
+      <td class="num">${e.todayCount ? e.todayCount + ' ครั้ง' : '<span class="sub">ยังไม่ลงเวลา</span>'}</td>
+      <td>${e.status === 'active' ? '<span class="pill p-in">ใช้งาน</span>' : '<span class="pill p-off">ระงับ</span>'}</td>
+      <td class="actions">${canWrite() ? `
+        <button class="btn danger" data-act="reset" data-id="${esc(e.empId)}" ${e.registered ? '' : 'disabled'}>รีเซ็ต LINE</button>
+        <button class="btn ghost" data-act="status" data-id="${esc(e.empId)}">${e.status === 'active' ? 'ระงับ' : 'เปิดใช้งาน'}</button>` : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">ไม่พบพนักงานตามเงื่อนไข</td></tr>';
+}
+
+async function onEmployeeAction(ev) {
+  const b = ev.target.closest('button[data-act]');
+  if (!b || b.disabled) return;
+  const emp = A.employees.find(e => e.empId === b.dataset.id);
+  if (b.dataset.act === 'reset') {
+    const ok = await askConfirm('รีเซ็ต LINE', `ยกเลิกการผูก LINE "${emp.lineName}" ของ ${emp.fullName} (${emp.empId}) พนักงานต้องลงทะเบียนใหม่ด้วยรหัสพนักงานบน LINE ที่จะใช้ต่อไป`, 'รีเซ็ต LINE', true);
+    if (!ok) return;
+    busy('กำลังรีเซ็ต');
+    try { await api('adminResetUid', { empId: emp.empId }); toast(`รีเซ็ต LINE ของ ${emp.fullName} แล้ว`); A.employees = await api('adminEmployees'); renderEmployees(); }
+    catch (e) { toast(e.message); } finally { busy(); }
+  } else if (b.dataset.act === 'status') {
+    const next = emp.status === 'active' ? 'inactive' : 'active';
+    const ok = await askConfirm(next === 'inactive' ? 'ระงับพนักงาน' : 'เปิดใช้งานพนักงาน',
+      next === 'inactive' ? `${emp.fullName} จะลงเวลาไม่ได้จนกว่าจะเปิดใช้งานอีกครั้ง` : `${emp.fullName} จะกลับมาลงเวลาได้`,
+      next === 'inactive' ? 'ระงับ' : 'เปิดใช้งาน', next === 'inactive');
+    if (!ok) return;
+    busy('กำลังบันทึก');
+    try { await api('adminSetStatus', { empId: emp.empId, status: next }); emp.status = next; renderEmployees(); toast('บันทึกแล้ว'); }
+    catch (e) { toast(e.message); } finally { busy(); }
+  }
+}
+
+/* ========================= ร้านค้า ========================= */
+async function loadStores() {
+  busy('กำลังโหลดร้านค้า');
+  try { A.stores = await api('adminStores', { filter: $('#st-filter').value }); renderStores(); }
+  catch (e) { toast(e.message); } finally { busy(); }
+}
+
+function renderStores() {
+  const q = $('#st-q').value.trim().toLowerCase();
+  const rows = (A.stores || []).filter(s => !q ||
+    `${s.name} ${s.subdistrict} ${s.district} ${s.province} ${s.phone} ${s.storeId}`.toLowerCase().includes(q));
+  $('#st-body').innerHTML = rows.length ? rows.map(s => `<tr>
+      <td>${esc(s.name)} ${s.verified ? '' : '<span class="pill p-warn">รอยืนยัน</span>'}<div class="sub">${esc(s.storeId)}</div></td>
+      <td>ต.${esc(s.subdistrict)} อ.${esc(s.district)}<div class="sub">จ.${esc(s.province)} ${esc(s.postcode)}</div></td>
+      <td class="num">${esc(s.phone)}</td>
+      <td>${esc(s.createdByName || s.createdBy || '-')}<div class="sub">${esc(s.createdAt)}</div></td>
+      <td class="num">${s.visits} ครั้ง</td>
+      <td class="actions">
+        <a href="${mapLink(s.lat, s.lng)}" target="_blank" rel="noopener">แผนที่</a>
+        ${canWrite() ? `${s.verified ? '' : `<button class="btn" data-act="verify" data-id="${esc(s.storeId)}">ยืนยันร้าน</button>`}
+        <button class="btn ghost" data-act="edit" data-id="${esc(s.storeId)}">แก้ไข</button>` : ''}
+      </td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty">${$('#st-filter').value === 'pending' ? 'ไม่มีร้านค้ารอยืนยัน' : 'ไม่พบร้านค้า'}</td></tr>`;
+}
+
+async function onStoreAction(ev) {
+  const b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  const s = A.stores.find(x => x.storeId === b.dataset.id);
+  if (b.dataset.act === 'verify') {
+    busy('กำลังยืนยันร้าน');
+    try { await api('adminUpdateStore', { storeId: s.storeId, verified: true }); toast(`ยืนยัน ${s.name} แล้ว`); await reloadStoresQuiet(); }
+    catch (e) { toast(e.message); } finally { busy(); }
+  } else if (b.dataset.act === 'edit') {
+    A.editing = s;
+    $('#e-name').value = s.name; $('#e-phone').value = s.phone;
+    $('#e-sub').value = s.subdistrict; $('#e-dist').value = s.district; $('#e-prov').value = s.province; $('#e-zip').value = s.postcode;
+    $('#e-verified').checked = s.verified;
+    $('#store-edit').hidden = false;
+  }
+}
+
+async function saveStore() {
+  const s = A.editing;
+  const data = {
+    storeId: s.storeId, name: $('#e-name').value, phone: $('#e-phone').value,
+    subdistrict: $('#e-sub').value, district: $('#e-dist').value, province: $('#e-prov').value,
+    postcode: $('#e-zip').value, verified: $('#e-verified').checked
+  };
+  busy('กำลังบันทึก');
+  try { await api('adminUpdateStore', data); $('#store-edit').hidden = true; toast('บันทึกการแก้ไขแล้ว'); await reloadStoresQuiet(); }
+  catch (e) { toast(e.message); } finally { busy(); }
+}
+
+async function reloadStoresQuiet() {
+  A.stores = await api('adminStores', { filter: $('#st-filter').value });
+  renderStores();
+  const pending = $('#st-filter').value === 'pending' ? A.stores.length : A.stores.filter(x => !x.verified).length;
+  $('#pending-count').textContent = pending; $('#pending-count').hidden = !pending;
+}
+
+/* ========================= ผูกปุ่ม ========================= */
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+$('#att-days').onchange = loadAttendance;
+$('#att-flagged').onchange = loadAttendance;
+$('#att-reload').onclick = loadAttendance;
+$('#att-q').addEventListener('input', debounce(renderAttendance, 150));
+$('#emp-q').addEventListener('input', debounce(renderEmployees, 150));
+$('#emp-filter').onchange = renderEmployees;
+$('#emp-reload').onclick = loadEmployees;
+$('#emp-body').addEventListener('click', onEmployeeAction);
+$('#st-filter').onchange = loadStores;
+$('#st-q').addEventListener('input', debounce(renderStores, 150));
+$('#st-reload').onclick = loadStores;
+$('#st-body').addEventListener('click', onStoreAction);
+$('#e-cancel').onclick = () => { $('#store-edit').hidden = true; };
+$('#e-save').onclick = saveStore;
+$('#btn-copy').onclick = async () => {
+  const input = $('#uid-text');
+  try { await navigator.clipboard.writeText(input.value); toast('คัดลอกแล้ว'); }
+  catch (e) { input.select(); toast('เลือกข้อความแล้ว กดค้างเพื่อคัดลอก'); }
+};
+
+main();
+</script>
+</body>
+</html>

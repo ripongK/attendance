@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ลงเวลาทำงาน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F2F5F3;  --card: #FFFFFF;  --ink: #1C2B26;  --muted: #5D6F68;  --line: #D5DED9;
+    --in: #0F6B4F;     --in-soft: #DCEFE6;
+    --out: #2F3E8F;    --out-soft: #E1E5F6;
+    --warn: #8A4B00;   --warn-soft: #FBEBD3;
+    --danger: #B42318; --danger-soft: #FDE4E1;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'IBM Plex Sans Thai', system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+    background: var(--paper); color: var(--ink); font-size: 16px; line-height: 1.55;
+    padding-top: env(safe-area-inset-top); min-height: 100vh;
+  }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 8px 16px 190px; }
+
+  /* แถบชื่อพนักงาน */
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px 4px; max-width: 480px; margin: 0 auto; }
+  .topbar img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--line); }
+  .topbar .who { flex: 1; min-width: 0; }
+  .topbar .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .meta { font-size: 13px; color: var(--muted); }
+
+  h1 { font-size: 24px; line-height: 1.3; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 19px; font-weight: 600; margin: 20px 0 10px; }
+  .lead { color: var(--muted); margin-bottom: 16px; }
+  .small { font-size: 14px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .stack > * + * { margin-top: 12px; }
+
+  /* ปุ่ม */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    min-height: 52px; padding: 12px 18px; border: 0; border-radius: 14px;
+    font: inherit; font-weight: 600; font-size: 17px; cursor: pointer; background: var(--ink); color: #fff;
+  }
+  .btn:disabled { opacity: .45; }
+  .btn.secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  .btn.link { background: none; color: var(--in); min-height: 44px; padding: 8px 0; width: auto;
+              text-decoration: underline; text-underline-offset: 3px; font-size: 16px; }
+  .btn:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible, label.opt:focus-within {
+    outline: 3px solid #7FB8A4; outline-offset: 2px;
+  }
+  .bottom-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: linear-gradient(to top, var(--paper) 78%, rgba(242,245,243,0));
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .bottom-bar .inner { max-width: 448px; margin: 0 auto; }
+
+  .screen-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .back { background: none; border: 0; font: inherit; color: var(--in); font-weight: 600; min-height: 44px; padding: 0; cursor: pointer; }
+  .tag { font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 99px; }
+  .tag-in { background: var(--in-soft); color: var(--in); }
+  .tag-out { background: var(--out-soft); color: var(--out); }
+
+  /* หน้าแรก: นาฬิกา + ปุ่มตอกบัตร */
+  .clock { font-size: 64px; font-weight: 700; letter-spacing: -1px; line-height: 1; font-variant-numeric: tabular-nums; margin-top: 16px; }
+  .clock small { font-size: 28px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .date { color: var(--muted); margin-top: 8px; }
+  .punch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+  .punch button {
+    border: 0; border-radius: 18px; min-height: 172px; padding: 18px; text-align: left; font: inherit; color: #fff;
+    display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
+  }
+  .punch .in { background: var(--in); }
+  .punch .out { background: var(--out); }
+  .punch .in.suggest { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--in); }
+  .punch .out.suggest { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--out); }
+  .punch .big { display: block; font-size: 26px; font-weight: 700; line-height: 1.2; }
+  .punch .hint { display: block; font-size: 14px; opacity: .85; margin-top: 4px; }
+  .today { margin-top: 20px; }
+
+  /* ตำแหน่ง / รายการร้าน */
+  .gps { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.good { background: #1F9D55; } .dot.fair { background: #D69E2E; } .dot.poor { background: var(--danger); }
+  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1.5px solid var(--line);
+         border-radius: 12px; background: var(--card); cursor: pointer; }
+  .opt input { margin-top: 4px; width: 20px; height: 20px; accent-color: var(--in); flex: none; }
+  .opt:has(input:checked) { border-color: var(--in); background: var(--in-soft); }
+  .opt .t { font-weight: 600; }
+  .opt .s { font-size: 14px; color: var(--muted); }
+  .dist { margin-left: auto; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--warn-soft);
+           color: var(--warn); margin-left: 6px; font-weight: 500; vertical-align: 2px; }
+  .note { padding: 12px 14px; border-radius: 10px; font-size: 15px; }
+  .note.warn { background: var(--warn-soft); color: var(--warn); }
+  .note.err { background: var(--danger-soft); color: var(--danger); }
+
+  /* ฟอร์ม */
+  label.lbl { display: block; font-weight: 500; margin-bottom: 6px; }
+  .field { margin-bottom: 14px; }
+  input[type=text], input[type=tel], textarea {
+    width: 100%; font: inherit; font-size: 17px; padding: 12px 14px; border: 1.5px solid var(--line);
+    border-radius: 10px; background: #fff; color: var(--ink);
+  }
+  input.invalid { border-color: var(--danger); }
+  .err-text { color: var(--danger); font-size: 14px; margin-top: 4px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .emp-input { font-size: 32px !important; letter-spacing: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+  .ac { position: relative; }
+  .ac-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: #fff; border: 1.5px solid var(--ink);
+             border-radius: 10px; margin-top: 4px; max-height: 280px; overflow: auto; list-style: none; padding: 4px; }
+  .ac-list li { padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 15px; }
+  .ac-list li:hover { background: var(--in-soft); }
+  .ac-list li.none { color: var(--muted); cursor: default; }
+  .ac-list li.none:hover { background: none; }
+  .divider { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+  /* กล้อง */
+  .cam { position: relative; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 3 / 4; }
+  .cam video, .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam video { transform: scaleX(-1); }   /* แสดงแบบกระจกให้ถ่ายง่าย แต่รูปที่บันทึกจะไม่กลับด้าน */
+  .cam .guide { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; color: #fff; font-size: 14px; background: rgba(0,0,0,.45); }
+  .shutter { width: 78px; height: 78px; border-radius: 50%; border: 6px solid var(--ink); background: #fff; margin: 18px auto 0; display: block; cursor: pointer; }
+  .shutter:active { transform: scale(.94); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ผลลัพธ์ */
+  .result-head { display: flex; align-items: center; gap: 16px; margin: 12px 0 18px; }
+  .check { flex: none; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: var(--in); color: #fff; }
+  .check.out { background: var(--out); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 15px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-weight: 500; }
+  .res-photo { border-radius: 12px; width: 100%; display: block; }
+
+  /* หน้าต่างซ้อน / โหลด / แจ้งเตือน */
+  .modal { position: fixed; inset: 0; background: rgba(28,43,38,.5); display: flex; align-items: flex-end; z-index: 90; }
+  .sheet { background: var(--paper); width: 100%; max-width: 480px; margin: 0 auto; border-radius: 20px 20px 0 0;
+           padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); max-height: 85vh; overflow: auto; }
+  .busy { position: fixed; inset: 0; background: rgba(242,245,243,.9); display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 14px; z-index: 100; font-weight: 500; padding: 24px; text-align: center; }
+  .spinner { width: 42px; height: 42px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--in); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+  .toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+           background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 110; font-size: 15px;
+           max-width: 92vw; width: max-content; }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar" hidden>
+  <img id="avatar" alt="">
+  <div class="who">
+    <div class="name" id="tb-name"></div>
+    <div class="meta" id="tb-meta"></div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- กำลังโหลด -->
+  <section class="screen" id="s-loading">
+    <p class="lead" style="margin-top:40px">กำลังเปิดระบบ</p>
+  </section>
+
+  <!-- ข้อผิดพลาดร้ายแรง -->
+  <section class="screen" id="s-error" hidden>
+    <h1 style="margin-top:24px">เปิดระบบไม่สำเร็จ</h1>
+    <div class="note err" id="error-msg"></div>
+    <div class="bottom-bar"><div class="inner">
+      <button class="btn" onclick="location.reload()">ลองใหม่อีกครั้ง</button>
+    </div></div>
+  </section>
+
+  <!-- ลงทะเบียน -->
+  <section class="screen" id="s-register" hidden>
+    <h1 style="margin-top:16px">ลงทะเบียนครั้งแรก</h1>
+    <p class="lead">กรอกรหัสพนักงาน 5 หลัก ระบบจะจำ LINE นี้ไว้ ครั้งต่อไปไม่ต้องกรอกอีก</p>
+    <div class="field">
+      <label class="lbl" for="emp-id">รหัสพนักงาน</label>
+      <input id="emp-id" type="text" inputmode="numeric" autocomplete="off" maxlength="5" class="emp-input" placeholder="00000">
+      <div class="err-text" id="reg-err" hidden></div>
+    </div>
+    <p class="small">ถ้าเปลี่ยนโทรศัพท์หรือเปลี่ยนบัญชี LINE ให้แจ้ง HR รีเซ็ตก่อน แล้วลงทะเบียนใหม่ที่หน้านี้</p>
+    <div class="bottom-bar"><div class="inner">
+      <button class="btn" id="btn-register">ลงทะเบียน</button>
+    </div></div>
+  </section>
+
+  <!-- หน้าแรก -->
+  <section class="screen" id="s-home" hidden>
+    <div class="clock"><span id="clock-hm">--:--</span><small id="clock-s">:--</small></div>
+    <div class="date" id="clock-date"></div>
+    <div class="punch">
+      <button class="in" id="btn-in">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+        <span><span class="big">เข้างาน</span><span class="hint">ถึงร้านแล้ว</span></span>
+      </button>
+      <button class="out" id="btn-out">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span><span class="big">ออกงาน</span><span class="hint">เสร็จงานที่ร้านนี้</span></span>
+      </button>
+    </div>
+    <div class="card today" id="today-text"></div>
+  </section>
+
+  <!-- ตำแหน่ง + เลือกร้าน -->
+  <section class="screen" id="s-locate" hidden>
+    <div class="screen-head">
+      <button class="back" onclick="show('s-home')">ย้อนกลับ</button>
+      <span class="tag" id="loc-type"></span>
+    </div>
+    <h1>ตำแหน่งของคุณ</h1>
+    <div class="gps" id="gps-line"></div>
+    <button class="btn link" onclick="locate()">หาตำแหน่งใหม่</button>
+    <div id="loc-body" class="stack"></div>
+    <div class="bottom-bar" id="loc-actions" hidden><div class="inner stack">
+      <button class="btn" id="loc-primary"></button>
+      <button class="btn secondary" id="loc-secondary" hidden></button>
+    </div></div>
+  </section>
+
+  <!-- เพิ่มร้านใหม่ -->
+  <section class="screen" id="s-store" hidden>
+    <div class="screen-head">
+      <button class="back" onclick="show('s-locate')">ย้อนกลับ</button>
+    </div>
+    <h1>เพิ่มร้านค้าใหม่</h1>
+    <p class="lead">กรอกขณะยืนอยู่หน้าร้าน เพื่อให้พิกัดตรงกับร้านจริง</p>
+
+    <div class="card">
+      <div class="gps" id="st-gps"></div>
+      <button class="btn link" onclick="refreshStoreGps()">ดึงพิกัดใหม่</button>
+    </div>
+
+    <h2>ข้อมูลร้าน</h2>
+    <div class="field">
+      <label class="lbl" for="st-name">ชื่อร้านค้า</label>
+      <input id="st-name" type="text" autocomplete="off" placeholder="เช่น ร้านเจริญเกษตรภัณฑ์">
+      <div class="err-text" hidden></div>
+    </div>
+    <div class="field">
+      <label class="lbl" for="st-phone">เบอร์โทรร้าน</label>
+      <input id="st-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="0812345678">
+      <div class="err-text" hidden></div>
+    </div>
+
+    <h2>ที่อยู่</h2>
+    <div class="field ac">
+      <label class="lbl" for="addr-search">ค้นหาที่อยู่</label>
+      <input id="addr-search" type="text" autocomplete="off" placeholder="พิมพ์ตำบล อำเภอ หรือรหัสไปรษณีย์">
+      <ul class="ac-list" id="ac-list" hidden></ul>
+      <div class="small" id="ac-hint" style="margin-top:4px">กำลังโหลดฐานข้อมูลที่อยู่</div>
+    </div>
+    <p class="small" style="margin-bottom:12px">ระบบกรอกที่อยู่จากพิกัดให้แล้ว ตรวจสอบและแก้ไขได้</p>
+    <div class="row2">
+      <div class="field">
+        <label class="lbl" for="st-sub">ตำบล</label>
+        <input id="st-sub" type="text" autocomplete="off">
+        <div class="err-text" hidden></div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="st-dist">อำเภอ</label>
+        <input id="st-dist" type="text" autocomplete="off">
+        <div class="err-text" hidden></div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="lbl" for="st-prov">จังหวัด</label>
+        <input id="st-prov" type="text" autocomplete="off">
+        <div class="err-text" hidden></div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="st-zip">รหัสไปรษณีย์</label>
+        <input id="st-zip" type="text" inputmode="numeric" maxlength="5" autocomplete="off">
+        <div class="err-text" hidden></div>
+      </div>
+    </div>
+
+    <div class="bottom-bar"><div class="inner">
+      <button class="btn" onclick="submitStore(false)">บันทึกร้านค้า</button>
+    </div></div>
+  </section>
+
+  <!-- กล้อง -->
+  <section class="screen" id="s-camera" hidden>
+    <div class="screen-head">
+      <button class="back" onclick="show('s-locate')">ย้อนกลับ</button>
+      <span class="tag" id="cam-type"></span>
+    </div>
+    <h1>ถ่ายรูปหน้าร้าน</h1>
+    <p class="lead" id="cam-place"></p>
+
+    <div id="cam-live">
+      <div class="cam">
+        <video id="video" playsinline muted autoplay></video>
+        <div class="guide">ให้เห็นใบหน้าของคุณและหน้าร้านหรือป้ายร้านในภาพเดียว</div>
+      </div>
+      <button class="shutter" id="btn-shutter" aria-label="ถ่ายรูป"></button>
+    </div>
+
+    <div id="cam-fallback" hidden>
+      <div class="note warn">เปิดกล้องในหน้านี้ไม่ได้ ใช้กล้องของโทรศัพท์แทนได้ (ระบบจะบันทึกว่าใช้กล้องสำรอง)</div>
+      <label class="btn" for="file-input" style="margin-top:12px">เปิดกล้องถ่ายรูป</label>
+      <input type="file" id="file-input" class="sr-only" accept="image/*" capture="user">
+    </div>
+
+    <div id="cam-review" hidden>
+      <div class="cam"><img id="preview" alt="รูปที่ถ่าย"></div>
+      <div class="field" style="margin-top:14px">
+        <label class="lbl" for="note">หมายเหตุ (ถ้ามี)</label>
+        <textarea id="note" rows="2" maxlength="300" placeholder="เช่น ร้านปิด เจ้าของไม่อยู่"></textarea>
+      </div>
+      <div class="bottom-bar"><div class="inner stack">
+        <button class="btn" id="btn-submit">ยืนยันลงเวลา</button>
+        <button class="btn secondary" id="btn-retake">ถ่ายใหม่</button>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ผลลัพธ์ -->
+  <section class="screen" id="s-result" hidden>
+    <div class="result-head">
+      <div class="check" id="res-icon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div>
+        <h1 id="res-title" style="margin:0"></h1>
+        <div class="clock" id="res-time" style="font-size:44px;margin-top:4px"></div>
+      </div>
+    </div>
+    <dl class="kv card" id="res-kv"></dl>
+    <div id="res-flags" class="stack" style="margin-top:12px"></div>
+    <img class="res-photo" id="res-photo" alt="รูปที่บันทึก" style="margin-top:12px">
+    <div class="bottom-bar"><div class="inner stack">
+      <button class="btn" id="btn-close">เสร็จสิ้น</button>
+      <button class="btn secondary" id="btn-home">กลับหน้าแรก</button>
+    </div></div>
+  </section>
+</main>
+
+<!-- หน้าต่างแจ้งร้านซ้ำ -->
+<div class="modal" id="modal-dup" hidden>
+  <div class="sheet">
+    <h2 style="margin-top:0">อาจมีร้านนี้ในระบบแล้ว</h2>
+    <p class="lead">พบร้านที่อยู่ใกล้กันมากหรือใช้เบอร์โทรเดียวกัน ตรวจสอบก่อนบันทึก</p>
+    <div class="stack" id="dup-list"></div>
+    <button class="btn" id="dup-new" style="margin-top:16px">ไม่ใช่ร้านเหล่านี้ บันทึกเป็นร้านใหม่</button>
+    <button class="btn link" onclick="document.getElementById('modal-dup').hidden = true">กลับไปแก้ไข</button>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden><div class="spinner"></div><div id="busy-text"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+/* =========================================================
+ * ตั้งค่า: แก้ 2 บรรทัดนี้ก่อนอัปโหลด
+ * ========================================================= */
+const CONFIG = {
+  LIFF_ID: '2011895450-P2aCU03Q',                 // เช่น 2001234567-AbCdEfGh
+  API_URL: 'https://script.google.com/macros/s/AKfycbz7NnN5iOSvr9d3bGMjS4vvmzrWwR9KkIEf_ZlW_0_jJcGP4TFNvoCJtGqa48Zts-nb5A/exec',  // จากการ Deploy ในส่วนที่ 2
+  SELF_SUMMARY: true,   // ส่งสรุปการลงเวลาเข้าแชตของพนักงานเอง (ฟรี ไม่ใช้โควตา OA)
+  ADDRESS_DB_URLS: [
+    './thai-address.json',   // ไฟล์ที่อัปโหลดไว้ใน GitHub (แนะนำ)
+    'https://cdn.jsdelivr.net/gh/earthchie/jquery.Thailand.js@master/jquery.Thailand.js/database/raw_database/raw_database.json'
+  ]
+};
+
+/* ========================= สถานะของแอป ========================= */
+const S = {
+  idToken: null, profile: null, emp: null, today: null,
+  checkType: null, pos: null, nearby: null, selectedStore: null,
+  photo: null, photoSource: 'camera', stream: null,
+  addrDB: null, addrLoading: null
+};
+
+const DAY_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+const MONTH_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const TYPE_LABEL = { IN: 'เข้างาน', OUT: 'ออกงาน' };
+
+/* ========================= ตัวช่วยทั่วไป ========================= */
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const thaiDate = d => `วัน${DAY_TH[d.getDay()]}ที่ ${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
+const hms = d => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(1) + ' กม.' : m + ' ม.';
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const placeLabel = () => S.selectedStore ? S.selectedStore.name : ('ใกล้ ' + ((S.nearby && S.nearby.geo.landmark) || 'จุดที่ลงเวลา'));
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.hidden = s.id !== id; });
+  if (id !== 's-camera') stopCamera();
+  window.scrollTo(0, 0);
+}
+
+function busy(text) {
+  if (text) { $('#busy-text').textContent = text; $('#busy').hidden = false; }
+  else $('#busy').hidden = true;
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+
+function fatal(msg) {
+  $('#error-msg').textContent = msg;
+  show('s-error');
+}
+
+// จัดการ error จาก API: บางกรณีต้องกลับไปหน้าลงทะเบียนหรือหน้า error
+function handleErr(e) {
+  if (e.code === 'NOT_REGISTERED') { show('s-register'); toast(e.message); return; }
+  if (e.code === 'INVALID_TOKEN' || e.code === 'INACTIVE' || e.code === 'NO_TOKEN') { fatal(e.message); return; }
+  toast(e.message);
+}
+
+/* ========================= เรียก Backend ========================= */
+async function api(action, data) {
+  let res;
+  try {
+    res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain เพื่อเลี่ยงปัญหา CORS ของ Apps Script
+      body: JSON.stringify({ action, idToken: S.idToken, data: data || {} })
+    });
+  } catch (e) {
+    throw Object.assign(new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่'), { code: 'NETWORK' });
+  }
+  let json;
+  try { json = await res.json(); }
+  catch (e) { throw Object.assign(new Error('เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ ตรวจสอบ API_URL และการ Deploy'), { code: 'BAD_RESPONSE' }); }
+  if (!json.ok) throw Object.assign(new Error(json.message), { code: json.code });
+  return json.data;
+}
+
+/* ========================= เริ่มต้นระบบ ========================= */
+async function main() {
+  if (CONFIG.LIFF_ID.includes('ใส่') || CONFIG.API_URL.includes('ใส่')) {
+    fatal('ยังไม่ได้ตั้งค่า LIFF_ID หรือ API_URL ในไฟล์ index.html');
+    return;
+  }
+  try {
+    busy('กำลังเชื่อมต่อ LINE');
+    await liff.init({ liffId: CONFIG.LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    S.idToken = liff.getIDToken();
+    S.profile = await liff.getProfile();
+    renderTopbar();
+
+    busy('กำลังตรวจสอบข้อมูลพนักงาน');
+    const me = await api('getMe');
+    if (me.registered) { applyMe(me); show('s-home'); }
+    else show('s-register');
+  } catch (e) {
+    fatal(e.message || 'เกิดข้อผิดพลาด');
+  } finally {
+    busy();
+  }
+}
+
+function renderTopbar() {
+  const p = S.profile || {};
+  $('#topbar').hidden = false;
+  if (p.pictureUrl) $('#avatar').src = p.pictureUrl;
+  $('#tb-name').textContent = S.emp ? S.emp.fullName : (p.displayName || '');
+  $('#tb-meta').textContent = S.emp ? `รหัส ${S.emp.empId}  ${S.emp.position || ''}` : 'ยังไม่ได้ลงทะเบียน';
+}
+
+function applyMe(me) {
+  S.emp = me.employee;
+  S.today = me.today || { count: 0, last: null };
+  renderTopbar();
+  renderHome();
+}
+
+/* ========================= ลงทะเบียน ========================= */
+async function doRegister() {
+  const id = $('#emp-id').value;
+  const err = $('#reg-err');
+  if (!/^\d{5}$/.test(id)) { err.textContent = 'กรอกรหัสพนักงานให้ครบ 5 หลัก'; err.hidden = false; return; }
+  busy('กำลังลงทะเบียน');
+  try {
+    const r = await api('register', { empId: id, displayName: S.profile.displayName });
+    applyMe({ employee: r.employee, today: { count: 0, last: null } });
+    show('s-home');
+    toast('ลงทะเบียนเรียบร้อย');
+  } catch (e) {
+    err.textContent = e.message; err.hidden = false;
+  } finally {
+    busy();
+  }
+}
+
+/* ========================= หน้าแรก ========================= */
+function tick() {
+  const d = new Date();
+  $('#clock-hm').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $('#clock-s').textContent = ':' + pad(d.getSeconds());
+  $('#clock-date').textContent = thaiDate(d);
+}
+
+function renderHome() {
+  const t = S.today || { count: 0, last: null };
+  $('#today-text').textContent = t.last
+    ? `วันนี้ลงเวลาแล้ว ${t.count} ครั้ง ล่าสุด${TYPE_LABEL[t.last.checkType] || ''} เวลา ${String(t.last.time).slice(0, 5)} น. ที่ ${t.last.placeName}`
+    : 'วันนี้ยังไม่ได้ลงเวลา';
+  const suggest = t.last && t.last.checkType === 'IN' ? 'OUT' : 'IN';
+  $('#btn-in').classList.toggle('suggest', suggest === 'IN');
+  $('#btn-out').classList.toggle('suggest', suggest === 'OUT');
+}
+
+function startCheck(type) {
+  S.checkType = type; S.selectedStore = null; S.photo = null; S.nearby = null;
+  const tag = $('#loc-type');
+  tag.textContent = TYPE_LABEL[type];
+  tag.className = 'tag ' + (type === 'IN' ? 'tag-in' : 'tag-out');
+  show('s-locate');
+  locate();
+}
+
+/* ========================= GPS ========================= */
+// เฝ้าดูตำแหน่งสูงสุด 10 วินาที แล้วเลือกค่าที่แม่นยำที่สุด (หยุดเร็วขึ้นถ้าแม่นพอแล้ว)
+function getBestPosition(maxWait = 10000, goodEnough = 25) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('อุปกรณ์นี้ไม่รองรับ GPS')); return; }
+    let best = null, done = false, wid = null, timer = null;
+    const stop = () => { done = true; if (wid !== null) navigator.geolocation.clearWatch(wid); clearTimeout(timer); };
+    const finish = () => {
+      if (done) return;
+      stop();
+      best ? resolve(best) : reject(new Error('หาตำแหน่งไม่ได้ เปิด GPS ของโทรศัพท์ แล้วกด "หาตำแหน่งใหม่"'));
+    };
+    wid = navigator.geolocation.watchPosition(p => {
+      const c = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) };
+      if (!best || c.accuracy < best.accuracy) best = c;
+      if (c.accuracy <= goodEnough) finish();
+    }, err => {
+      if (err.code === 1 && !done) {   // ผู้ใช้ไม่อนุญาต
+        stop();
+        reject(new Error('LINE ยังไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง เปิดได้ที่ การตั้งค่าโทรศัพท์ > LINE > ตำแหน่ง'));
+      }
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: maxWait });
+    timer = setTimeout(finish, maxWait);
+  });
+}
+
+function renderGps(sel, p) {
+  const cls = p.accuracy <= 30 ? 'good' : p.accuracy <= 100 ? 'fair' : 'poor';
+  $(sel).innerHTML = `<span class="dot ${cls}"></span><span>พิกัด ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} แม่นยำ ±${p.accuracy} ม.</span>`;
+}
+
+async function locate() {
+  $('#loc-body').innerHTML = '';
+  $('#loc-actions').hidden = true;
+  $('#gps-line').innerHTML = '<span class="dot"></span><span>กำลังหาตำแหน่ง อาจใช้เวลาถึง 10 วินาที</span>';
+  try {
+    S.pos = await getBestPosition();
+    renderGps('#gps-line', S.pos);
+    $('#loc-body').innerHTML = '<p class="lead" style="margin-top:8px">กำลังค้นหาร้านค้าใกล้คุณ</p>';
+    S.nearby = await api('nearby', S.pos);
+    renderNearby();
+  } catch (e) {
+    if (['NOT_REGISTERED', 'INVALID_TOKEN', 'INACTIVE'].includes(e.code)) { handleErr(e); return; }
+    $('#loc-body').innerHTML = `<div class="note err">${esc(e.message)}</div>`;
+  }
+}
+
+function renderNearby() {
+  const n = S.nearby;
+  const primary = $('#loc-primary'), secondary = $('#loc-secondary');
+  let html = n.gpsWarning ? `<div class="note warn">${esc(n.gpsWarning)}</div>` : '';
+
+  if (n.stores.length) {
+    html += `<h2>เลือกร้านที่คุณอยู่</h2><div class="stack">` +
+      n.stores.map((s, i) => `
+        <label class="opt">
+          <input type="radio" name="store" value="${i}" ${i === 0 ? 'checked' : ''}>
+          <span style="flex:1;min-width:0">
+            <span class="t">${esc(s.name)}</span>${s.verified ? '' : '<span class="badge">รอยืนยัน</span>'}<br>
+            <span class="s">${esc(s.address)}</span>
+          </span>
+          <span class="dist">${fmtDist(s.distance)}</span>
+        </label>`).join('') +
+      `</div><button class="btn link" onclick="openStoreForm()">ร้านที่อยู่ไม่มีในรายการ เพิ่มร้านใหม่</button>`;
+    primary.textContent = 'ถัดไป ถ่ายรูป';
+    primary.onclick = () => {
+      const i = Number(document.querySelector('input[name=store]:checked').value);
+      S.selectedStore = n.stores[i];
+      goCamera();
+    };
+    secondary.hidden = true;
+  } else {
+    html += `
+      <div class="card">
+        <div style="font-weight:600">ยังไม่มีร้านค้าในระบบบริเวณนี้</div>
+        <p class="small" style="margin-top:6px">ใกล้ ${esc(n.geo.landmark)}<br>${esc(n.geo.address)}</p>
+      </div>
+      <p class="small">ถ้าคุณอยู่ที่ร้านค้า กรุณาเพิ่มร้านเข้าระบบ ครั้งต่อไปที่มาร้านนี้จะเลือกได้ทันที</p>`;
+    primary.textContent = 'เพิ่มร้านค้านี้';
+    primary.onclick = openStoreForm;
+    secondary.hidden = false;
+    secondary.textContent = 'ไม่ได้อยู่ที่ร้าน ลงเวลาที่จุดนี้';
+    secondary.onclick = () => { S.selectedStore = null; goCamera(); };
+  }
+  $('#loc-body').innerHTML = html;
+  $('#loc-actions').hidden = false;
+}
+
+/* ========================= เพิ่มร้านใหม่ ========================= */
+function openStoreForm() {
+  const g = (S.nearby && S.nearby.geo) || {};
+  $('#st-name').value = '';
+  $('#st-phone').value = '';
+  $('#addr-search').value = '';
+  $('#st-sub').value = g.subdistrict || '';
+  $('#st-dist').value = g.district || '';
+  $('#st-prov').value = g.province || '';
+  $('#st-zip').value = g.postcode || '';
+  renderGps('#st-gps', S.pos);
+  clearErrs();
+  show('s-store');
+  loadAddressDB().then(fillFromDB);
+}
+
+async function refreshStoreGps() {
+  busy('กำลังหาตำแหน่ง');
+  try { S.pos = await getBestPosition(); renderGps('#st-gps', S.pos); }
+  catch (e) { toast(e.message); }
+  finally { busy(); }
+}
+
+const stripPrefix = s => String(s || '').trim().replace(/^(ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต)\s*/, '');
+
+// โหลดฐานข้อมูลที่อยู่ไทย (โหลดครั้งเดียว ตอนเปิดฟอร์มครั้งแรก)
+function loadAddressDB() {
+  if (S.addrLoading) return S.addrLoading;
+  S.addrLoading = (async () => {
+    for (const url of CONFIG.ADDRESS_DB_URLS) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) continue;
+        const raw = await r.json();
+        const arr = Array.isArray(raw) ? raw : (raw.data || []);
+        const db = arr.map(x => ({
+          t: String(x.district || x.subdistrict || ''),   // ในฐานข้อมูลนี้ district = ตำบล
+          a: String(x.amphoe || ''),
+          p: String(x.province || ''),
+          z: String(x.zipcode || x.postcode || '')
+        })).filter(x => x.t && x.p);
+        if (db.length) {
+          S.addrDB = db;
+          $('#ac-hint').textContent = 'พิมพ์ชื่อตำบล อำเภอ หรือรหัสไปรษณีย์ แล้วแตะเลือกจากรายการ';
+          return;
+        }
+      } catch (e) { /* ลอง URL ถัดไป */ }
+    }
+    $('#ac-hint').textContent = 'ระบบค้นหาที่อยู่ใช้งานไม่ได้ในขณะนี้ กรอกช่องด้านล่างเองได้';
+  })();
+  return S.addrLoading;
+}
+
+// ถ้ามีตำบล+จังหวัดจากพิกัดแล้ว ให้เติมอำเภอ/รหัสไปรษณีย์ที่ขาดจากฐานข้อมูล
+function fillFromDB() {
+  if (!S.addrDB) return;
+  const t = stripPrefix($('#st-sub').value), a = stripPrefix($('#st-dist').value), p = stripPrefix($('#st-prov').value);
+  if (!t || !p) return;
+  const hit = S.addrDB.find(r => r.t === t && r.p === p && (!a || r.a === a)) || S.addrDB.find(r => r.t === t && r.p === p);
+  if (!hit) return;
+  if (!$('#st-dist').value) $('#st-dist').value = hit.a;
+  if (!/^\d{5}$/.test($('#st-zip').value)) $('#st-zip').value = hit.z;
+}
+
+let acItems = [];
+function searchAddress() {
+  const list = $('#ac-list');
+  const tokens = $('#addr-search').value.trim().split(/\s+/).map(stripPrefix).filter(Boolean);
+  if (!S.addrDB || !tokens.length || tokens.join('').length < 2) { list.hidden = true; return; }
+  acItems = [];
+  for (const r of S.addrDB) {
+    const hay = `${r.t} ${r.a} ${r.p} ${r.z}`;
+    if (tokens.every(tk => hay.includes(tk))) { acItems.push(r); if (acItems.length >= 8) break; }
+  }
+  list.innerHTML = acItems.length
+    ? acItems.map((r, i) => `<li data-i="${i}">ต.${esc(r.t)} อ.${esc(r.a)} จ.${esc(r.p)} ${esc(r.z)}</li>`).join('')
+    : '<li class="none">ไม่พบที่อยู่นี้ ลองพิมพ์คำอื่น หรือกรอกช่องด้านล่างเอง</li>';
+  list.hidden = false;
+}
+
+function pickAddress(e) {
+  const li = e.target.closest('li[data-i]');
+  if (!li) return;
+  const r = acItems[Number(li.dataset.i)];
+  $('#st-sub').value = r.t; $('#st-dist').value = r.a; $('#st-prov').value = r.p; $('#st-zip').value = r.z;
+  $('#addr-search').value = '';
+  $('#ac-list').hidden = true;
+  clearErrs();
+}
+
+function fieldErr(id, msg) {
+  const el = $('#' + id);
+  el.classList.add('invalid');
+  const t = el.parentElement.querySelector('.err-text');
+  if (t) { t.textContent = msg; t.hidden = false; }
+  return false;
+}
+function clearErrs() {
+  document.querySelectorAll('.invalid').forEach(e => e.classList.remove('invalid'));
+  document.querySelectorAll('#s-store .err-text').forEach(e => { e.hidden = true; });
+}
+
+function validateStore() {
+  clearErrs();
+  const v = {
+    name: $('#st-name').value.trim(),
+    phone: $('#st-phone').value.replace(/\D/g, ''),
+    subdistrict: stripPrefix($('#st-sub').value),
+    district: stripPrefix($('#st-dist').value),
+    province: stripPrefix($('#st-prov').value),
+    postcode: $('#st-zip').value.trim()
+  };
+  let ok = true;
+  if (v.name.length < 2) ok = fieldErr('st-name', 'กรอกชื่อร้านค้า');
+  if (!/^0\d{8,9}$/.test(v.phone)) ok = fieldErr('st-phone', 'เบอร์โทร 9-10 หลัก ขึ้นต้นด้วย 0');
+  if (!v.subdistrict) ok = fieldErr('st-sub', 'กรอกตำบล');
+  if (!v.district) ok = fieldErr('st-dist', 'กรอกอำเภอ');
+  if (!v.province) ok = fieldErr('st-prov', 'กรอกจังหวัด');
+  if (!/^\d{5}$/.test(v.postcode)) ok = fieldErr('st-zip', 'ตัวเลข 5 หลัก');
+  return ok ? v : null;
+}
+
+async function submitStore(confirmNew) {
+  const v = validateStore();
+  if (!v) {
+    const first = document.querySelector('.invalid');
+    if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
+  busy('กำลังบันทึกร้านค้า');
+  try {
+    const r = await api('addStore', Object.assign(v, { lat: S.pos.lat, lng: S.pos.lng, confirmNew: !!confirmNew }));
+    if (r.duplicate) { showDupModal(r.candidates); return; }
+    S.selectedStore = r.store;
+    toast('เพิ่มร้านค้าเรียบร้อย');
+    goCamera();
+  } catch (e) {
+    handleErr(e);
+  } finally {
+    busy();
+  }
+}
+
+function showDupModal(cands) {
+  $('#dup-list').innerHTML = cands.map((s, i) => `
+    <div class="card">
+      <div style="font-weight:600">${esc(s.name)}</div>
+      <div class="small">${esc(s.address)}<br>โทร ${esc(s.phone)}  ห่างจากคุณ ${fmtDist(s.distance)}</div>
+      <button class="btn secondary" style="margin-top:10px" data-i="${i}">ใช่ ร้านนี้</button>
+    </div>`).join('');
+  $('#dup-list').onclick = e => {
+    const b = e.target.closest('button[data-i]');
+    if (!b) return;
+    S.selectedStore = cands[Number(b.dataset.i)];
+    $('#modal-dup').hidden = true;
+    goCamera();
+  };
+  $('#modal-dup').hidden = false;
+}
+
+/* ========================= กล้อง ========================= */
+function camState(st) {
+  $('#cam-live').hidden = st !== 'live';
+  $('#cam-review').hidden = st !== 'review';
+  $('#cam-fallback').hidden = st !== 'fallback';
+}
+
+async function goCamera() {
+  const tag = $('#cam-type');
+  tag.textContent = TYPE_LABEL[S.checkType];
+  tag.className = 'tag ' + (S.checkType === 'IN' ? 'tag-in' : 'tag-out');
+  $('#cam-place').textContent = placeLabel();
+  $('#note').value = '';
+  show('s-camera');
+  await startCamera();
+}
+
+async function startCamera() {
+  S.photo = null; S.photoSource = 'camera';
+  camState('live');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('ไม่รองรับกล้อง');
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false
+    });
+    const v = $('#video');
+    v.srcObject = S.stream;
+    await v.play();
+  } catch (e) {
+    console.warn(e);
+    stopCamera();
+    camState('fallback');
+  }
+}
+
+function stopCamera() {
+  if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
+}
+
+function capture() {
+  const v = $('#video');
+  if (!v.videoWidth) { toast('กล้องยังไม่พร้อม รอสักครู่'); return; }
+  makePhoto(v, v.videoWidth, v.videoHeight);
+  stopCamera();
+}
+
+// ย่อรูปไม่เกิน 1280px + ประทับข้อมูลลงรูป แล้วแปลงเป็น JPEG
+function makePhoto(src, w, h) {
+  const scale = Math.min(1, 1280 / Math.max(w, h));
+  const cw = Math.round(w * scale), ch = Math.round(h * scale);
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0, cw, ch);
+  stampPhoto(ctx, cw, ch);
+  S.photo = c.toDataURL('image/jpeg', 0.8);
+  $('#preview').src = S.photo;
+  camState('review');
+}
+
+function stampPhoto(ctx, w, h) {
+  const now = new Date();
+  const fs = Math.max(14, Math.round(Math.min(w, h) * 0.035));
+  const lines = [
+    `${TYPE_LABEL[S.checkType]}  ${thaiDate(now)}  ${hms(now)}`,
+    `${S.emp.fullName} (${S.emp.empId})`,
+    placeLabel(),
+    `GPS ${S.pos.lat.toFixed(6)}, ${S.pos.lng.toFixed(6)}  ±${S.pos.accuracy} ม.`
+  ];
+  const padding = fs * 0.6, lh = fs * 1.4, bh = padding * 2 + lh * lines.length;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, h - bh, w, bh);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `600 ${fs}px "IBM Plex Sans Thai", sans-serif`;
+  ctx.textBaseline = 'top';
+  lines.forEach((t, i) => ctx.fillText(t, padding, h - bh + padding + i * lh, w - padding * 2));
+}
+
+function onFilePicked(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => { S.photoSource = 'file'; makePhoto(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+  img.onerror = () => toast('เปิดรูปไม่ได้ กรุณาถ่ายใหม่');
+  img.src = url;
+  e.target.value = '';
+}
+
+/* ========================= ส่งลงเวลา ========================= */
+async function submitCheckin() {
+  if (!S.photo) { toast('กรุณาถ่ายรูปก่อน'); return; }
+  busy('กำลังบันทึกเวลา อย่าปิดหน้านี้');
+  try {
+    const note = (S.photoSource === 'file' ? '[ใช้กล้องสำรอง] ' : '') + $('#note').value.trim();
+    const r = await api('checkin', {
+      checkType: S.checkType,
+      lat: S.pos.lat, lng: S.pos.lng, accuracy: S.pos.accuracy,
+      storeId: S.selectedStore ? S.selectedStore.storeId : '',
+      photo: S.photo,
+      note
+    });
+    S.today = { count: ((S.today && S.today.count) || 0) + 1, last: { checkType: r.checkType, placeName: r.placeName, time: r.time } };
+    renderResult(r);
+    show('s-result');
+    sendSelfSummary(r);
+  } catch (e) {
+    handleErr(e);
+  } finally {
+    busy();
+  }
+}
+
+// ส่งการ์ดสรุปเข้าแชตที่เปิดหน้านี้มา (ในนามพนักงานเอง จึงไม่กินโควตาข้อความของ OA)
+async function sendSelfSummary(r) {
+  if (!CONFIG.SELF_SUMMARY || !window.liff || !liff.isInClient()) return;
+  try {
+    const ctx = liff.getContext();
+    if (!ctx || ['utou', 'group', 'room'].indexOf(ctx.type) === -1) return;
+    const isIn = r.checkType === 'IN';
+    await liff.sendMessages([{
+      type: 'flex',
+      altText: `${TYPE_LABEL[r.checkType]} ${String(r.time).slice(0, 5)} น. ${r.placeName}`,
+      contents: {
+        type: 'bubble', size: 'kilo',
+        body: {
+          type: 'box', layout: 'vertical', spacing: 'sm',
+          contents: [
+            { type: 'text', text: `${TYPE_LABEL[r.checkType]}เรียบร้อย`, weight: 'bold', size: 'lg', color: isIn ? '#0F6B4F' : '#2F3E8F' },
+            { type: 'text', text: `วัน${r.dayTh} ${r.date} เวลา ${r.time} น.`, size: 'sm', color: '#5D6F68', wrap: true },
+            { type: 'separator', margin: 'md' },
+            { type: 'text', text: r.placeName || '-', weight: 'bold', wrap: true, margin: 'md' },
+            { type: 'text', text: `${S.emp.fullName} (${S.emp.empId})`, size: 'sm', color: '#5D6F68', wrap: true }
+          ]
+        }
+      }
+    }]);
+  } catch (e) {
+    console.warn('sendMessages ไม่สำเร็จ', e);   // ไม่กระทบการลงเวลา
+  }
+}
+
+const FLAG_TEXT = {
+  FAR: d => `ตำแหน่งของคุณห่างจากร้าน ${fmtDist(d)} เกินรัศมีที่กำหนด ระบบบันทึกไว้ให้ผู้ดูแลตรวจสอบ`,
+  LOW_ACCURACY: () => 'สัญญาณ GPS ไม่แม่นยำขณะลงเวลา',
+  NO_STORE: () => 'ลงเวลาโดยไม่ได้ระบุร้านค้า (ใช้แลนด์มาร์คแทน)'
+};
+
+function renderResult(r) {
+  $('#res-icon').className = 'check' + (r.checkType === 'OUT' ? ' out' : '');
+  $('#res-title').textContent = `${TYPE_LABEL[r.checkType]}เรียบร้อย`;
+  $('#res-time').textContent = String(r.time).slice(0, 5);
+  const rows = [
+    ['วันที่', `วัน${r.dayTh} ${r.date}`],
+    ['เวลา', `${r.time} น.`],
+    ['สถานที่', r.placeName]
+  ];
+  if (r.distance !== '' && r.distance != null) rows.push(['ระยะจากร้าน', fmtDist(r.distance)]);
+  $('#res-kv').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+  $('#res-flags').innerHTML = r.flag === 'OK' ? '' :
+    String(r.flag).split(',').map(f => `<div class="note warn">${esc(FLAG_TEXT[f] ? FLAG_TEXT[f](r.distance) : f)}</div>`).join('');
+  $('#res-photo').src = S.photo;
+}
+
+function goHome() { renderHome(); show('s-home'); }
+
+/* ========================= ผูกปุ่มกับฟังก์ชัน ========================= */
+$('#emp-id').addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
+  $('#reg-err').hidden = true;
+});
+$('#emp-id').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+$('#btn-register').onclick = doRegister;
+$('#btn-in').onclick = () => startCheck('IN');
+$('#btn-out').onclick = () => startCheck('OUT');
+$('#addr-search').addEventListener('input', debounce(searchAddress, 150));
+$('#ac-list').addEventListener('click', pickAddress);
+document.addEventListener('click', e => { if (!e.target.closest('.ac')) $('#ac-list').hidden = true; });
+$('#dup-new').onclick = () => { $('#modal-dup').hidden = true; submitStore(true); };
+$('#btn-shutter').onclick = capture;
+$('#file-input').addEventListener('change', onFilePicked);
+$('#btn-retake').onclick = () => { if (S.photoSource === 'file') { S.photo = null; camState('fallback'); } else startCamera(); };
+$('#btn-submit').onclick = submitCheckin;
+$('#btn-close').onclick = () => { if (window.liff && liff.isInClient()) liff.closeWindow(); else goHome(); };
+$('#btn-home').onclick = goHome;
+
+tick();
+setInterval(tick, 1000);
+main();
+</script>
+</body>
+</html>
